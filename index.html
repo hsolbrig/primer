@@ -51,14 +51,23 @@ function prepareHighlight (highlightables, onClass, offClass, slide) {
 
     <section id="abstract">
       <p>
-        The Shape Expressions (ShEx) language describes RDF graph structures.
-        A <code>shape</code> describes the triples touching nodes in RDF graphs.
-        These descriptions identify predicates and their associated cardinalities and datatypes.
-        ShEx shapes can be used to communicate data structures associated with some process or interface, generate or validate data, or drive user interfaces.
+        The Shape Expressions (ShEx) language describes RDF graph structures. Shape Expressions can specify the nodes
+        that can appear as subjects or objects in a graph, which predicates may be associated with given subjects/objects
+        and which objects/subjects may be associated with particular subject-predicate/object-predicate combinations.
+        Shape Expressions can specify cardinalities, data types, and the structures that a given subject or object may
+      or may not appear in.</p>
+      <p>
+        Shape Expressions are intended for use in:
+        <ul>
+      <li><b>Communication-</b> describing data structures, API parameters and interfaces.</li>
+      <li><b>Validation and conformance testing</b> - determining whether a given graph conforms to structure definition.</li>
+      <li><b>User interface generation</b> - creating of forms and syntax directed data entry tools.</li>
+      <li><b>Data transformation</b>- transforming RDF graphs into other formats and structures</li>
+      </ul>
       </p>
       <p>
         This document introduces ShEx to people familiar with basic concepts of RDF[[rdf11-concepts]].
-        This primer develops examples from an issue tracking application to introduce all major features of ShEx, including the construction of shapes and their correspondence with RDF graphs.
+        It develops a set of examples based on a simple issue tracking application to introduce the major features of ShEx.
         This primer is a companion to the <a href="../spec/">language specification</a> that serves as a language reference and full specification.
       </p>    
     </section>
@@ -87,40 +96,58 @@ function prepareHighlight (highlightables, onClass, offClass, slide) {
       </script>
       <div class="namespace">
         <p>
-          Shape Expressions, or ShEx, is a language for describing an ideal RDF graph against which real RDF graphs can be compared.
-          The description of an ideal RDF graph, or ShEx Schema, is tested against a given RDF data graph to yield a conformance test result, of validation result, that reports any mismatches between the ideal "shape" of the data and its actual contents.
+          Shape Expressions (ShEx), is a language for describing RDF graph structures.  A ShEx definition (<b>Schema</b>)
+          identifies the rules that the elements (triples) in an RDF graph must meet in order to be considered <i>conformant</i>.
+          It specifies the possible subjects, predicates, objects and combinations thereof that may or
+          may not appear in a given graph.  A given subject or object node in an RDF graph may be tested against a ShEx
+          Schema to determine whether it conforms the stated criteria and, if not, why not.  A ShEx Schema can also be
+          used to determine whether all triples in a given RDF graph directly or indirectly conform to a ShEx Schema
+          definition.  If all triples in the graph conform, the graph itself can be considered to be "conformant".
         </p>
         <p>
-          It's like the old joke about how to sculpt an elephant: "Take a block of marble and chip away everything that doesn't look like an elephant!"
-          The simplest possible ShEx schema, <code>&lt;S&gt; {}</code>, which matches all possible RDF graphs, is like the block of marble.
-          Just as each tap on the chisel "constrains" the marble block to look more like an elephant, each shape expression, shape, node constraint, or triple constraint defined in a ShEx schema restricts the collection of potential graphs to look more like the RDF data required for a particular process, interface, or application.
-          The RDF data may be accessed in files or through APIs or SPARQL endpoints.
-          The ShEx schema may be used for purposes ranging from data validation to the configuration of user interfaces.
-          This primer focuses on the common use case of validating instance data.
+          Like the joke about how to sculpt a statue of an elephant, <i>"Start with a block of marble and remove everything that
+          doesn't look like an elephant."</i>, we can start with simplest possible ShEx schema, "<code>:S1 {}</code>",
+          which matches any subject in an RDF graph that are ... subjects; a pretty exhaustive list.</p><p>
+
+          Just as each tap on the chisel "constrains" the marble block to look more like an elephant, each ShEx constraint
+          in a ShEx schema reduces number of possible graphs that match the specified requirements.  The ShEx
+          schema, "<code>:S2 {rdf:type [foaf:Person]}</code>" matches any subject in an RDF graph that appears as the
+          subject of any number of triples as long as <emph>exactly</emph> one of them has an <code>rdf:type</code>
+          predicate and the object of that triple is <code>foaf:Person</code>.  Subjects with <empn>no</empn> <code>rdf:type</code>
+        predicates, <emph>more than one</emph> <code>rdf:type</code> predicates or an <code>rdf:type</code> predicate whose object
+        is not <code>foaf:Person</code> do not "conform" to this definition.</p><p>
+        One can continue to refine the ShEx definition -- the definition in the previous paragraph can be extended to say:
+        "<code>:S3 {rdf:type [foaf:Person]; foaf:knows @:S3</code>" - that conformant subjects participate in at least two
+        two triples -- one of which must be "?s rdf:type foaf:Person" and the second of which must have an foaf:knows
+        predicate and an object that <emph>also</emph> conforms to the :S3 schema.  </p>
+        <p>This document describes the how to create ShEx definitions, how they are used and what combinations of
+          subjects, predicates and objects are considered conformant.
+        </p>
+        <h3>The ShEx Schema</h3>
+        <p>
+        A ShEx Schema is based on two fundamental constructs: the <span class="new">node constraint</span> and the <span class="new">triple constraint</span>.  A <span class="node-constraint lookit">node constraint</span> defines a set of possible values for a given RDF Node. <b>@@Do we want to point
+          folks at the definition of "Node", etc?</b> A <span class="triple-constraint lookit">triple constraint</span>  defines a set of possible RDF triples.
+          All other ShEx constructs, including keywords, grouping mechanisms, syntactic conventions, and matching procedures
+          provided by the ShEx model are used to modify, qualify or contextualize these two basic building blocks.
         </p>
         <p>
-        A ShEx schema is based on two fundamental constructs: the <span class="new">node constraint</span> and the <span class="new">triple constraint</span>.  The detailed keywords, grouping mechanisms, syntactic conventions, and matching procedures provided by the ShEx model may all be seen as modifying, qualifying, or contextualizing node constraints and triple constraints.
-        </p>
+          Picture an RDF database (graph) that carries information about enrolles in a school.  Put yourself in the position of
+          a data manager who wants to ensure that every student "record" in this graph references at least one and at
+          most two guardians, whose identifiers must be IRI's.
+        </p><p>
+        The following ShEx Schema shows how you might accomplish this:
+      </p>
+
         <p>
-          Picture some RDF data about enrollees in a school.
-          Data managers might want to ensure that each description of a student names one or two guardians, each of which has an assigned IRI to facilitate the merging of data about all children associated with a given guardian.
-          The age of each student must fall between 13 and 20.
-        </p>
-        <p>
-          The following ShEx schema has: one <span class="lookit">node constraint</span>, labeled with IRI <span class="shape-name">school:enrolleeAge</span>, for matching data nodes with an integer value between 13 and 20; and one <span class="lookit">triple constraint</span>, defined within a shape labeled with the IRI <span class="shape-name">school:Enrollee</span>, for matching one or two triples having the predicate <span class="type">ex:</span><span class="constant">hasGuardian</span>, where the triple has an IRI as its object (or "value"). 
-          Data that conforms to these constraints will pass validation tests, and data that does not conform will fail.
-        </p>
+
         <div id="example-school-enrolleeAge" class="example wrapper">
           <pre id="schema-school-enrolleeAge" class="schema shexc"><span class="keyword">PREFIX</span> <span class="type">school:</span> <span class="function-name">&lt;http://school.example/#&gt;</span>
 <span class="keyword">PREFIX</span> <span class="type">xsd:</span> <span class="function-name">&lt;http://www.w3.org/2001/XMLSchema#&gt;</span>
 <span class="keyword">PREFIX</span> <span class="type">ex:</span> <span class="function-name">&lt;http://ex.example/#&gt;</span>
 
-<span class="comment"># <span class="value-constraint new lookit">Node constraint</span></span>
-<span class="shape-name">school:enrolleeAge</span> <span class="type">xsd:</span><span class="constant">integer</span> <span class="keyword">MinInclusive</span> 13 <span class="keyword">MaxInclusive</span> 20
-
 <span class="shape-name">school:Enrollee</span> {
-  <span class="comment"># <span class="value-constraint new lookit">Triple constraint</span></span>
-  <span class="type">ex:</span><span class="constant">hasGuardian</span> <span class="keyword">IRI</span> {1,2}
+  <span class="comment"># <span class="triple-constraint new lookit">Node constraint</span></span>
+  <span class="type">ex:</span><span class="constant">hasGuardian</span> <span class="keyword"><span class="node-constraint new lookit">IRI</span></span> {1,2}
 }
 </pre>
         </div>
@@ -146,7 +173,9 @@ function prepareHighlight (highlightables, onClass, offClass, slide) {
           </div>
         </div>
         <p>
-        The next example adds a triple constraint on the data predicate foaf:age, which must have a value matching the node constraint <span class="constant">school:enrolleeAge</span>, which is cited in the triple constraint by reference.
+        The next example begins by simplifying the example above, where the IRI
+
+          adds a triple constraint on the data predicate foaf:age, which must have a value matching the node constraint <span class="constant">school:enrolleeAge</span>, which is cited in the triple constraint by reference.
         </p>
         <div id="quickstart-example-1" class="example wrapper">
         <div id="simple-expressions-example-1" class="example wrapper">
